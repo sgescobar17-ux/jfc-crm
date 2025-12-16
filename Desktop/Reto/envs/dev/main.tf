@@ -6,10 +6,14 @@ module "network" {
 }
 
 module "frontend_s3" {
-  source      = "../../modules/s3_frontend"
+  source = "../../modules/s3_frontend"
+
+  bucket_name = "jfc-frontend-${var.environment}"
   domain_name = "www.jfc-ecommerce.com"
-  tags        = local.tags
+
+  tags = local.tags
 }
+
 
 module "cloudfront" {
   source      = "../../modules/cloudfront"
