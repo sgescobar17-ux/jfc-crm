@@ -2,8 +2,10 @@ module "network" {
   source = "../../modules/network"
 
   environment = var.environment
+  vpc_cidr    = var.vpc_cidr
   tags        = local.tags
 }
+
 
 module "frontend_s3" {
   source = "../../modules/s3_frontend"
