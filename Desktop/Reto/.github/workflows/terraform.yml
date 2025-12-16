@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Desktop/Reto/envs/dev/
+        working-directory: envs/dev
 
     steps:
       - name: Checkout repository
