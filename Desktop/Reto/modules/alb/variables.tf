@@ -12,3 +12,8 @@ variable "tags" {
   description = "Tags comunes"
   type        = map(string)
 }
+
+variable "name" {
+  description = "ALB name"
+  type        = string
+}

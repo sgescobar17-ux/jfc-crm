@@ -28,7 +28,7 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_lb" "this" {
-  name               = "jfc-alb"
+  name               = var.name
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
