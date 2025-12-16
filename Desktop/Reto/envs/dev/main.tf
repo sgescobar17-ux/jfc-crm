@@ -27,7 +27,6 @@ module "alb" {
 
   name    = "jfc-${var.environment}"
   vpc_id  = module.network.vpc_id
-  subnets = module.network.public_subnets
   tags    = local.tags
 }
 
