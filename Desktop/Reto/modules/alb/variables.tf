@@ -17,3 +17,8 @@ variable "name" {
   description = "ALB name"
   type        = string
 }
+variable "certificate_arn" {
+  description = "ARN del certificado SSL para el listener HTTPS"
+  type        = string
+  default     = null # Puedes dejarlo null si no siempre se usa HTTPS
+}

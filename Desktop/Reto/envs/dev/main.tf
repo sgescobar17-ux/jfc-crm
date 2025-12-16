@@ -23,11 +23,12 @@ module "cloudfront" {
 }
 
 module "alb" {
-  source  = "../../modules/alb"
-  subnets = ["subnet-0123456789abcdef0", "subnet-0fedcba9876543210"]
-  name    = "jfc-${var.environment}"
-  vpc_id  = module.network.vpc_id
-  tags    = local.tags
+  source          = "../../modules/alb"
+  subnets         = ["subnet-0123456789abcdef0", "subnet-0fedcba9876543210"]
+  certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/abcdefg-1234-5678-90ab-cdef12345678"
+  name            = "jfc-${var.environment}"
+  vpc_id          = module.network.vpc_id
+  tags            = local.tags
 }
 
 module "ecs" {
