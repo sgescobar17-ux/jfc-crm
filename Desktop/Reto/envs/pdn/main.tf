@@ -12,16 +12,16 @@ module "frontend_s3" {
 }
 
 module "cloudfront" {
-  source        = "../../modules/cloudfront"
-  bucket_name  = module.frontend_s3.bucket_name
-  tags          = local.tags
+  source      = "../../modules/cloudfront"
+  bucket_name = module.frontend_s3.bucket_name
+  tags        = local.tags
 }
 
 module "alb" {
-  source     = "../../modules/alb"
-  vpc_id     = module.network.vpc_id
-  subnets    = module.network.private_subnets
-  tags       = local.tags
+  source  = "../../modules/alb"
+  vpc_id  = module.network.vpc_id
+  subnets = module.network.private_subnets
+  tags    = local.tags
 }
 
 module "ecs" {
