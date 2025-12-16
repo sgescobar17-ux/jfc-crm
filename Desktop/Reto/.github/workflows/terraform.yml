@@ -23,6 +23,19 @@ jobs:
         with:
           terraform_version: 1.6.6
 
+      - name: Debug paths
+        run: |
+          pwd
+          ls -la
+          echo "---- envs ----"
+          ls -la ../
+          echo "---- repo root ----"
+          ls -la ../../
+          echo "---- modules ----"
+          ls -la ../../modules
+          echo "---- alb ----"
+          ls -la ../../modules/alb    
+
       - name: Terraform Init
         run: terraform init
 
