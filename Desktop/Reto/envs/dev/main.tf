@@ -17,12 +17,12 @@ module "cloudfront" {
   tags          = local.tags
 }
 
-module "alb" {
-  source     = "../../modules/alb"
-  vpc_id     = module.network.vpc_id
-  subnets    = module.network.private_subnets
-  tags       = local.tags
-}
+#module "alb" {
+#  source     = "../../modules/alb"
+#  vpc_id     = module.network.vpc_id
+#  subnets    = module.network.private_subnets
+#  tags       = local.tags
+#}
 
 module "ecs" {
   source       = "../../modules/ecs_fargate"
