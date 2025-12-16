@@ -29,10 +29,13 @@ module "alb" {
 }
 
 module "ecs" {
-  source       = "../../modules/ecs_fargate"
-  cluster_name = "jfc-ecs"
-  vpc_id       = module.network.vpc_id
-  subnets      = module.network.private_subnets
-  alb_listener = module.alb.listener_arn
-  tags         = local.tags
+  source = "../../modules/ecs_fargate"
+
+  cluster_name     = "jfc-ecs-${var.environment}"
+  vpc_id           = module.network.vpc_id
+  subnets          = module.network.private_subnets
+  alb_listener_arn = module.alb.https_listener_arn
+
+  tags = local.tags
 }
+
