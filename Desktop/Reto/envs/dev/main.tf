@@ -25,9 +25,9 @@ module "cloudfront" {
 module "alb" {
   source = "../../modules/alb"
 
-  name    = "jfc-${var.environment}"
-  vpc_id  = module.network.vpc_id
-  tags    = local.tags
+  name   = "jfc-${var.environment}"
+  vpc_id = module.network.vpc_id
+  tags   = local.tags
 }
 
 module "ecs" {
