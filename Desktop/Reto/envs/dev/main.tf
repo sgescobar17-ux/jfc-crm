@@ -1,6 +1,6 @@
 module "network" {
-  source      = "../../modules/network"
-  vpc_cidr    = "10.0.0.0/16"
+  source = "../../modules/network"
+
   environment = var.environment
   tags        = local.tags
 }
@@ -10,21 +10,22 @@ module "frontend_s3" {
 
   bucket_name = "jfc-frontend-${var.environment}"
   domain_name = "www.jfc-ecommerce.com"
-
-  tags = local.tags
+  tags        = local.tags
 }
 
-
 module "cloudfront" {
-  source      = "../../modules/cloudfront"
+  source = "../../modules/cloudfront"
+
   bucket_name = module.frontend_s3.bucket_name
   tags        = local.tags
 }
 
 module "alb" {
-  source  = "../../modules/alb"
+  source = "../../modules/alb"
+
+  name    = "jfc-${var.environment}"
   vpc_id  = module.network.vpc_id
-  subnets = module.network.private_subnets
+  subnets = module.network.public_subnets
   tags    = local.tags
 }
 
@@ -35,7 +36,5 @@ module "ecs" {
   vpc_id           = module.network.vpc_id
   subnets          = module.network.private_subnets
   alb_listener_arn = module.alb.https_listener_arn
-
-  tags = local.tags
+  tags             = local.tags
 }
-
