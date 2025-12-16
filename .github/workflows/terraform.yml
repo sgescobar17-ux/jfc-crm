@@ -1,4 +1,4 @@
-name: Terraform CI/CD
+name: Terraform 
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: envs/dev
+        working-directory: Desktop/Reto/envs/dev
 
     steps:
       - name: Checkout repository
