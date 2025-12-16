@@ -1,6 +1,6 @@
 module "network" {
   source = "../../modules/network"
-
+  subnets = module.network.public_subnets	
   environment = var.environment
   vpc_cidr    = var.vpc_cidr
   tags        = local.tags
