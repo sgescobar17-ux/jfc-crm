@@ -1,29 +1,31 @@
 ---
-# roles/parchado/tasks/main.yml
-- name: Update package cache (Rocky Linux)
-  ansible.builtin.dnf:
-    update_cache: yes
-    cache_valid_time: 3600
-  when: ansible_distribution == "Rocky"
+- name: Parchado de servidores Rocky Linux 10
+  hosts: servidores_rocky  # Cambia esto por el grupo en tu inventario
+  become: yes              # Necesario para ejecutar comandos con sudo
+  gather_facts: yes        # Recopila información del sistema para validación
 
-- name: Upgrade all packages (Rocky Linux)
-  ansible.builtin.dnf:
-    name: "*"
-    state: latest
-  register: upgrade_result
-  when: ansible_distribution == "Rocky"
+  tasks:
+    - name: Validar que el sistema sea Rocky Linux 10
+      fail:
+        msg: "Este servidor no es Rocky Linux 10 (Es {{ ansible_distribution }} {{ ansible_distribution_version }})"
+      when: ansible_distribution != "Rocky" or ansible_distribution_major_version != "10"
 
-- name: Check if reboot is required (uses needs-restarting if available)
-  ansible.builtin.command: needs-restarting -r
-  register: needs_restarting
-  failed_when: false
-  changed_when: false
-  when: ansible_distribution == "Rocky"
+    - name: Actualizar todos los paquetes a la última versión disponible
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+      register: dnf_result
 
-- name: Reboot if kernel/packages require it
-  ansible.builtin.reboot:
-    msg: "Rebooting after package upgrade"
-    reboot_timeout: 600
-  when:
-    - ansible_distribution == "Rocky"
-    - needs_restarting.rc == 1
+    - name: Verificar si se requiere reiniciar (específicamente por cambios de kernel)
+      shell: "needs-restarting -r"
+      register: reboot_required
+      ignore_errors: yes
+      failed_when: false
+      changed_when: false
+
+    - name: Reiniciar el servidor si es necesario
+      reboot:
+        msg: "Reinicio provocado por actualización de paquetes mediante Ansible"
+        reboot_timeout: 600
+      when: reboot_required.rc != 0
