@@ -1,16 +1,11 @@
 ---
-- name: Parchado de servidores Rocky Linux 10
+- name: Parchado servidores
   hosts: acs_db,acs_manager,acs_nfs
   become: yes
   gather_facts: yes
 
   tasks:
-    #- name: Validar que el sistema sea Rocky Linux 10
-    #  fail:
-    #    msg: "Este servidor no es Rocky Linux 10 (Es {{ ansible_distribution }} {{ ansible_distribution_version }})"
-    #  when: ansible_distribution != "Rocky" or ansible_distribution_major_version != "10"
-
-    - name: Actualizar todos los paquetes a la última versión disponible
+    - name: Actualizar todos los paquetes (Cualquier versión de Rocky/RHEL)
       dnf:
         name: "*"
         state: latest
@@ -21,25 +16,36 @@
       copy:
         dest: /tmp/update_history.txt
         content: |
-          Fecha de actualización: {{ ansible_date_time.iso8601 }}
-          Servidor: {{ inventory_hostname }}
-          Estado: {{ 'Cambios realizados' if dnf_result.changed else 'Sin cambios pendientes' }}
-          Paquetes actualizados:
-          {{ dnf_result.results | default(['Ninguno']) | join('\n') }}
+          ==================================================
+          REPORTE DE ACTUALIZACIÓN ANSIBLE
+          ==================================================
+          Fecha:      {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+          Servidor:   {{ inventory_hostname }}
+          S.O.:       {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Estado:     {{ 'SISTEMA ACTUALIZADO' if dnf_result.changed else 'SIN CAMBIOS' }}
+          
+          PAQUETES PROCESADOS:
+          {% if dnf_result.results is defined %}
+          {{ dnf_result.results | join('\n') }}
+          {% else %}
+          Ninguno (El sistema ya estaba al día).
+          {% endif %}
+          ==================================================
         owner: root
         group: root
         mode: '0644'
-      when: dnf_result.changed  # Solo actualiza el log si hubo cambios reales
+      
+      when: dnf_result is defined
 
-    - name: Verificar si se requiere reiniciar
+    - name: Verificar si se requiere reiniciar (needs-restarting)
       shell: "needs-restarting -r"
       register: reboot_required
       ignore_errors: yes
       failed_when: false
       changed_when: false
 
-    - name: Reiniciar el servidor si es necesario
+    - name: Reiniciar el servidor si el kernel o librerías cambiaron
       reboot:
-        msg: "Reinicio provocado por actualización de paquetes mediante Ansible"
+        msg: "Reinicio automático por parcheo de seguridad (Ansible)"
         reboot_timeout: 600
-      when: reboot_required.rc != 0
+      when: reboot_required.rc is defined and reboot_required.rc != 0
