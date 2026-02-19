@@ -1,8 +1,8 @@
 ---
 - name: Parchado de servidores Rocky Linux 10
-  hosts: servidores_rocky  # Cambia esto por el grupo en tu inventario
-  become: yes              # Necesario para ejecutar comandos con sudo
-  gather_facts: yes        # Recopila información del sistema para validación
+  hosts: acs_db,acs_manager,acs_nfs
+  become: yes
+  gather_facts: yes
 
   tasks:
     - name: Validar que el sistema sea Rocky Linux 10
@@ -17,7 +17,21 @@
         update_cache: yes
       register: dnf_result
 
-    - name: Verificar si se requiere reiniciar (específicamente por cambios de kernel)
+    - name: Crear log de actualización en /tmp/update_history.txt
+      copy:
+        dest: /tmp/update_history.txt
+        content: |
+          Fecha de actualización: {{ ansible_date_time.iso8601 }}
+          Servidor: {{ inventory_hostname }}
+          Estado: {{ 'Cambios realizados' if dnf_result.changed else 'Sin cambios pendientes' }}
+          Paquetes actualizados:
+          {{ dnf_result.results | default(['Ninguno']) | join('\n') }}
+        owner: root
+        group: root
+        mode: '0644'
+      when: dnf_result.changed  # Solo actualiza el log si hubo cambios reales
+
+    - name: Verificar si se requiere reiniciar
       shell: "needs-restarting -r"
       register: reboot_required
       ignore_errors: yes
