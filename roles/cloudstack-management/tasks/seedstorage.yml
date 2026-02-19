@@ -1,0 +1,23 @@
+- name: Ensure secondary storage mount exists
+  file:
+    path: "{{ tmp_nfs_path }}"
+    state: directory
+
+- name: Ensure NFS storage is mounted
+  mount:
+    path: "{{ tmp_nfs_path }}"
+    src: "{{ sec_nfs_ip }}:{{ sec_nfs_path }}"
+    fstype: nfs
+    opts: nolock
+    state: mounted
+
+- name: Seed secondary storage templates
+  command: >
+    /usr/share/cloudstack-common/scripts/storage/secondary/cloud-install-sys-tmplt
+    -m {{ tmp_nfs_path }}
+    -u {{ item.url }}
+    -h {{ item.hypervisor }}
+    -F
+  loop:
+    - { url: "http://download.cloudstack.org/templates/4.2/systemvmtemplate-2013-06-12-master-kvm.qcow2.bz2", hypervisor: "kvm" }
+

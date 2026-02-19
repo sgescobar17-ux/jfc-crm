@@ -1,0 +1,41 @@
+---
+- hosts: acs_nfs
+  become: yes
+  vars:
+    nfs_path: "/cloudstack_nfs"
+    management_ip: "192.168.80.100"
+  roles:
+    - nfs
+
+- hosts: acs_db
+  become: yes
+
+  vars:
+    mysql_root_password: "Cl0ud5tack"
+    mysql_cloud_password: "Cl0ud5tack"
+
+  roles:
+    - mysql
+
+
+- hosts: acs_manager
+  become: yes
+
+  vars:
+    mysql_root_password: "Cl0ud5tack"
+    mysql_cloud_password: "Cl0ud5tack"
+    mysql_server_ip: "{{ hostvars[groups['acs_db'][0]].ansible_host | default(groups['acs_db'][0]) }}"
+    tmp_nfs_path: /cloudstack_nfs
+    sec_nfs_ip: 192.168.80.68
+    sec_nfs_path: /cloudstack_nfs
+
+  roles:
+    - cloudstack-management
+
+  tasks:
+    - name: Include database setup tasks
+      import_tasks: /etc/ansible/roles/cloudstack-management/tasks/setupdb.yml
+
+    - name: Include storage seed tasks
+      import_tasks: /etc/ansible/roles/cloudstack-management/tasks/seedstorage.yml
+

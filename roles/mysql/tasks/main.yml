@@ -1,0 +1,56 @@
+- name: Ensure mysql server is installed
+  yum:
+    name: mysql-community-server
+    state: present
+
+- name: Ensure mysql python is installed
+  yum:
+    name: python3-PyMySQL
+    state: present
+
+- name: Ensure selinux python bindings are installed
+  yum:
+    name: python3-libselinux
+    state: present
+
+- name: Ensure cloudstack specific my.cnf lines are present
+  lineinfile:
+    dest: /etc/my.cnf
+    regexp: "{{ item }}"
+    insertafter: "symbolic-links=0"
+    line: "{{ item }}"
+  with_items:
+    - skip-name-resolve
+    - default-time-zone='+00:00'
+    - innodb_rollback_on_timeout=1
+    - innodb_lock_wait_timeout=600
+    - max_connections=350
+    - log-bin=mysql-bin
+    - binlog-format='ROW'
+
+- name: Ensure MySQL service is started
+  service:
+    name: mysqld
+    state: started
+
+- name: Ensure MySQL service is enabled at boot
+  service:
+    name: mysqld
+    enabled: yes
+
+- name: Ensure root password is set
+  community.mysql.mysql_user:
+    user: root
+    password: "{{ mysql_root_password }}"
+    host: localhost
+  ignore_errors: true
+
+- name: Ensure root has sufficient privileges
+  community.mysql.mysql_user:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    user: root
+    host: "%"
+    password: "{{ mysql_root_password }}"
+    priv: "*.*:GRANT,ALL"
+    state: present
