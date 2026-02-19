@@ -5,10 +5,10 @@
   gather_facts: yes
 
   tasks:
-    - name: Validar que el sistema sea Rocky Linux 10
-      fail:
-        msg: "Este servidor no es Rocky Linux 10 (Es {{ ansible_distribution }} {{ ansible_distribution_version }})"
-      when: ansible_distribution != "Rocky" or ansible_distribution_major_version != "10"
+    #- name: Validar que el sistema sea Rocky Linux 10
+    #  fail:
+    #    msg: "Este servidor no es Rocky Linux 10 (Es {{ ansible_distribution }} {{ ansible_distribution_version }})"
+    #  when: ansible_distribution != "Rocky" or ansible_distribution_major_version != "10"
 
     - name: Actualizar todos los paquetes a la última versión disponible
       dnf:
