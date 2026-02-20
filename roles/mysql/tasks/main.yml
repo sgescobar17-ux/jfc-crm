@@ -9,9 +9,15 @@
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
 
-- name: Instalar repositorio oficial de MySQL 8.4 (LTS)
+- name: Descargar el paquete del repositorio de MySQL
+  get_url:
+    url: https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm
+    dest: /tmp/mysql84-community-release.rpm
+    mode: '0644'
+
+- name: Instalar repositorio oficial de MySQL 8.4 (LTS) desde archivo local
   dnf:
-    name: https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm
+    name: /tmp/mysql84-community-release.rpm
     state: present
     disable_gpg_check: no
 
