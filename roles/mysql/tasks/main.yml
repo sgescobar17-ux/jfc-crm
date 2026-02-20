@@ -9,21 +9,25 @@
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
 
-- name: Descargar el repositorio MySQL usando IPv4
+- name: Descargar el repositorio MySQL usando IPv4 a un directorio accesible
   shell: |
     curl -4 -L "https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm" \
     -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-    -o /tmp/mysql84-community-release.rpm
+    -o /var/tmp/mysql84-community-release.rpm
   args:
-    creates: /tmp/mysql84-community-release.rpm
+    creates: /var/tmp/mysql84-community-release.rpm
 
-- name: Ajustar contexto de SELinux para el archivo RPM
-  shell: restorecon -v /tmp/mysql84-community-release.rpm
-  changed_when: false
+- name: Ajustar permisos y contexto de SELinux para DNF
+  file:
+    path: /var/tmp/mysql84-community-release.rpm
+    owner: root
+    group: root
+    mode: '0644'
+    setype: rpm_package_t
 
 - name: Instalar repositorio oficial de MySQL 8.4 (LTS)
   dnf:
-    name: /tmp/mysql84-community-release.rpm
+    name: /var/tmp/mysql84-community-release.rpm
     state: present
     disable_gpg_check: no
 
@@ -32,6 +36,12 @@
     dnf -y module disable mysql mariadb
   register: module_disable
   changed_when: "'Disabling modules' in module_disable.stdout"
+
+- name: Forzar IPv4 en la configuración de DNF (para evitar cuelgues)
+  lineinfile:
+    path: /etc/dnf/dnf.conf
+    line: "ip_resolve=4"
+    state: present
 
 - name: Ensure mysql server is installed
   yum:
