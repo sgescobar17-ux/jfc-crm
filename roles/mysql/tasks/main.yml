@@ -1,41 +1,46 @@
 ---
-- name: Asegurar que GnuPG esté instalado
+- name: Asegurar que wget y GnuPG estén instalados
   yum:
-    name: gnupg2
+    name: 
+      - wget
+      - gnupg2
     state: present
 
-- name: Forzar IPv4 global en DNF para evitar bloqueos
-  lineinfile:
-    path: /etc/dnf/dnf.conf
-    line: "ip_resolve=4"
-    state: present
-
-- name: Limpiar archivo corrupto anterior
+- name: Limpiar cualquier rastro de archivos corruptos anteriores
   file:
     path: /tmp/mysql84-community-release.rpm
     state: absent
+
+- name: Descargar repositorio MySQL usando wget (comando verificado)
+  command: >
+    wget -4 --user-agent="Mozilla/5.0" 
+    https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm 
+    -O /tmp/mysql84-community-release.rpm
+  args:
+    creates: /tmp/mysql84-community-release.rpm
 
 - name: Importar llave GPG de MySQL
   rpm_key:
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
 
-- name: Instalar repositorio de MySQL directamente desde URL (con bypass de proxy/cache)
+- name: Instalar repositorio oficial de MySQL 8.4 desde archivo local
   dnf:
-    name: "https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm"
+    name: /tmp/mysql84-community-release.rpm
     state: present
     disable_gpg_check: no
-    validate_certs: yes
-  register: dnf_repo_install
-  until: dnf_repo_install is success
-  retries: 3
-  delay: 5
 
 - name: Desactivar módulos de MySQL/MariaDB predeterminados de Rocky
   shell: |
     dnf -y module disable mysql mariadb
   register: module_disable
   changed_when: "'Disabling modules' in module_disable.stdout"
+
+- name: Forzar IPv4 en la configuración de DNF para el resto de descargas
+  lineinfile:
+    path: /etc/dnf/dnf.conf
+    line: "ip_resolve=4"
+    state: present
 
 - name: Ensure mysql server is installed
   yum:
