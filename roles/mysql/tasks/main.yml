@@ -9,13 +9,13 @@
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
 
-- name: Descargar el paquete del repositorio de MySQL (con User-Agent para evitar 403)
-  get_url:
-    url: https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm
-    dest: /tmp/mysql84-community-release.rpm
-    mode: '0644'
-    headers:
-      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+- name: Forzar descarga del repositorio MySQL usando IPv4
+  shell: |
+    curl -4 -L "https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm" \
+    -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+    -o /tmp/mysql84-community-release.rpm
+  args:
+    creates: /tmp/mysql84-community-release.rpm
 
 - name: Instalar repositorio oficial de MySQL 8.4 (LTS) desde archivo local
   dnf:
