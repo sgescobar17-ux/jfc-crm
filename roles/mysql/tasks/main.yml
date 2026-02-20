@@ -11,10 +11,14 @@
   args:
     creates: /tmp/mysql84-community-release.rpm
 
-- name: Importar llave GPG de MySQL
+- name: Importar todas las llaves GPG oficiales de MySQL (2022, 2023 y actual)
   rpm_key:
     state: present
-    key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
+    key: "{{ item }}"
+  with_items:
+    - https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+    - https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
+    - https://repo.mysql.com/RPM-GPG-KEY-mysql
 
 - name: Instalar repositorio MySQL usando comando RPM directo
   shell: rpm -Uvh /tmp/mysql84-community-release.rpm
@@ -35,6 +39,7 @@
   yum:
     name: mysql-community-server
     state: present
+    update_cache: yes
 
 - name: Ensure mysql python is installed
   yum:
