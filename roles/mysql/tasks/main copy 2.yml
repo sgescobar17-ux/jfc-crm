@@ -1,4 +1,3 @@
----
 - name: Importar llave GPG de MySQL
   rpm_key:
     state: present
@@ -35,7 +34,7 @@
   lineinfile:
     dest: /etc/my.cnf
     regexp: "^{{ item.split('=')[0] }}"
-    insertafter: '^\[mysqld\]'
+    insertafter: "\[mysqld\]"
     line: "{{ item }}"
   with_items:
     - skip-name-resolve
@@ -52,14 +51,12 @@
     state: started
     enabled: yes
 
-- name: Ensure root password is set (intento inicial)
+- name: Ensure root password is set (Primera vez)
   community.mysql.mysql_user:
     user: root
     password: "{{ mysql_root_password }}"
     host: localhost
     login_unix_socket: /var/lib/mysql/mysql.sock
-    check_implicit_admin: yes
-    state: present
   ignore_errors: true
 
 - name: Ensure root has sufficient privileges
@@ -69,4 +66,5 @@
     user: root
     host: "%"
     password: "{{ mysql_root_password }}"
-    priv: "*
+    priv: "*.*:ALL,GRANT"
+    state: present
