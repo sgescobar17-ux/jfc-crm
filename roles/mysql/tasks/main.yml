@@ -69,4 +69,5 @@
     user: root
     host: "%"
     password: "{{ mysql_root_password }}"
-    priv: "*
+    priv: "*.*:ALL,GRANT"
+    state: present
