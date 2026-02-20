@@ -25,7 +25,7 @@
     line: "ip_resolve=4"
     state: present
 
-- name: Instalar servidor MySQL y conectores (Ajustado a comportamiento CLI)
+- name: Instalar servidor MySQL y conectores (Bypass vía extra_args)
   dnf:
     name: 
       - mysql-community-server
@@ -34,9 +34,9 @@
       - mysql-community-common
       - mysql-community-icu-data-files
     state: present
-    nogpgcheck: yes       # Esto equivale a --nogpgcheck en la CLI
-    disable_gpg_check: yes
     update_cache: yes
+    disable_gpg_check: yes
+    extra_args: "--nogpgcheck"  # <--- Esto inyecta el comando exacto de la CLI
 
 - name: Ensure mysql python is installed
   yum:
