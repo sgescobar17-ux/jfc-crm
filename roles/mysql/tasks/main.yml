@@ -1,5 +1,5 @@
 ---
-- name: Asegurar que GnuPG esté instalado (necesario para rpm_key)
+- name: Asegurar que GnuPG esté instalado
   yum:
     name: gnupg2
     state: present
@@ -9,7 +9,7 @@
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
 
-- name: Forzar descarga del repositorio MySQL usando IPv4
+- name: Descargar el repositorio MySQL usando IPv4
   shell: |
     curl -4 -L "https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm" \
     -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
@@ -17,7 +17,11 @@
   args:
     creates: /tmp/mysql84-community-release.rpm
 
-- name: Instalar repositorio oficial de MySQL 8.4 (LTS) desde archivo local
+- name: Ajustar contexto de SELinux para el archivo RPM
+  shell: restorecon -v /tmp/mysql84-community-release.rpm
+  changed_when: false
+
+- name: Instalar repositorio oficial de MySQL 8.4 (LTS)
   dnf:
     name: /tmp/mysql84-community-release.rpm
     state: present
