@@ -51,9 +51,16 @@
 ## [openSUSE]
 ## green.example.com
 ## blue.example.com
-[acs_db]
+[oldacs_db]
 192.168.80.94
-[acs_manager]
+[oldacs_manager]
 192.168.80.100
-[acs_nfs]
+[oldacs_nfs]
 192.168.80.68
+
+[acs_manager]
+new-mgmt
+[acs_db]
+new-bd
+[acs_nfs]
+new-nfs
