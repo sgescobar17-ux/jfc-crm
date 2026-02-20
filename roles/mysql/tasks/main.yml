@@ -6,7 +6,7 @@
       - gnupg2
     state: present
 
-- name: Eliminar archivo corrupto anterior para permitir nueva descarga
+- name: Eliminar archivo corrupto anterior
   file:
     path: /tmp/mysql84-community-release.rpm
     state: absent
@@ -27,13 +27,7 @@
   failed_when: "rpm_result.rc != 0 and 'already installed' not in rpm_result.stderr"
   changed_when: "'installing' in rpm_result.stdout"
 
-- name: Desactivar módulos de MySQL/MariaDB predeterminados de Rocky
-  shell: |
-    dnf -y module disable mysql mariadb
-  register: module_disable
-  changed_when: "'Disabling modules' in module_disable.stdout"
-
-- name: Forzar IPv4 en la configuración de DNF para el servidor
+- name: Forzar IPv4 en la configuración de DNF
   lineinfile:
     path: /etc/dnf/dnf.conf
     line: "ip_resolve=4"
