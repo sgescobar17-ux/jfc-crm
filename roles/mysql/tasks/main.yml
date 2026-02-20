@@ -11,13 +11,6 @@
   args:
     creates: /tmp/mysql84-community-release.rpm
 
-- name: IMPORTACIÓN FORZADA - Descargar e Importar la llave GPG específica que causa el error
-  shell: |
-    wget -4 https://repo.mysql.com/RPM-GPG-KEY-mysql-2023 -O /tmp/RPM-GPG-KEY-mysql-2023
-    rpm --import /tmp/RPM-GPG-KEY-mysql-2023
-  args:
-    creates: /tmp/RPM-GPG-KEY-mysql-2023
-
 - name: Instalar repositorio MySQL usando comando RPM directo
   shell: rpm -Uvh /tmp/mysql84-community-release.rpm
   register: rpm_result
@@ -32,14 +25,16 @@
     line: "ip_resolve=4"
     state: present
 
-- name: Instalar servidor MySQL (Bypass GPG definitivo)
+- name: Instalar servidor MySQL y conectores (Ajustado a comportamiento CLI)
   dnf:
     name: 
       - mysql-community-server
       - mysql-community-client
       - mysql-community-libs
       - mysql-community-common
+      - mysql-community-icu-data-files
     state: present
+    nogpgcheck: yes       # Esto equivale a --nogpgcheck en la CLI
     disable_gpg_check: yes
     update_cache: yes
 
