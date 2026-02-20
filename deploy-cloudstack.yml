@@ -3,7 +3,7 @@
   become: yes
   vars:
     nfs_path: "/cloudstack_nfs"
-    management_ip: "192.168.80.100"
+    management_ip: "new-mgmt"
   roles:
     - nfs
 
@@ -26,7 +26,7 @@
     mysql_cloud_password: "Cl0ud5tack"
     mysql_server_ip: "{{ hostvars[groups['acs_db'][0]].ansible_host | default(groups['acs_db'][0]) }}"
     tmp_nfs_path: /cloudstack_nfs
-    sec_nfs_ip: 192.168.80.68
+    sec_nfs_ip: 192.168.80.48
     sec_nfs_path: /cloudstack_nfs
 
   roles:

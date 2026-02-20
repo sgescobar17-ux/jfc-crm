@@ -1,7 +1,7 @@
 - name: Setup CloudStack databases
   command: >
     /usr/bin/cloudstack-setup-databases
-    cloud:{{ mysql_cloud_password }}@192.168.80.94
+    cloud:{{ mysql_cloud_password }}@new-bd
     --deploy-as=root:{{ mysql_root_password }}
     --force
 - name: Setup CloudStack manager
