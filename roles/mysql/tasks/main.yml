@@ -11,11 +11,12 @@
   args:
     creates: /tmp/mysql84-community-release.rpm
 
-- name: Forzar importación de llaves GPG de MySQL vía comando (Bypass Crypto-Policy)
+- name: IMPORTACIÓN FORZADA - Descargar e Importar la llave GPG específica que causa el error
   shell: |
-    rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-    rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
-  ignore_errors: yes
+    wget -4 https://repo.mysql.com/RPM-GPG-KEY-mysql-2023 -O /tmp/RPM-GPG-KEY-mysql-2023
+    rpm --import /tmp/RPM-GPG-KEY-mysql-2023
+  args:
+    creates: /tmp/RPM-GPG-KEY-mysql-2023
 
 - name: Instalar repositorio MySQL usando comando RPM directo
   shell: rpm -Uvh /tmp/mysql84-community-release.rpm
@@ -31,7 +32,7 @@
     line: "ip_resolve=4"
     state: present
 
-- name: Instalar servidor MySQL y conectores (Bypass GPG definitivo)
+- name: Instalar servidor MySQL (Bypass GPG definitivo)
   dnf:
     name: 
       - mysql-community-server
@@ -42,7 +43,7 @@
     disable_gpg_check: yes
     update_cache: yes
 
-- name: Ensure mysql python is installed (Conector para Ansible)
+- name: Ensure mysql python is installed
   yum:
     name: python3-PyMySQL
     state: present
