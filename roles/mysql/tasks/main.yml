@@ -9,7 +9,7 @@
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
 
-- name: Descargar el repositorio MySQL usando IPv4 a un directorio accesible
+- name: Descargar el repositorio MySQL usando IPv4
   shell: |
     curl -4 -L "https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm" \
     -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
@@ -17,13 +17,13 @@
   args:
     creates: /var/tmp/mysql84-community-release.rpm
 
-- name: Ajustar permisos y contexto de SELinux para DNF
+- name: Ajustar permisos y contexto de SELinux (Compatibilidad Universal)
   file:
     path: /var/tmp/mysql84-community-release.rpm
     owner: root
     group: root
     mode: '0644'
-    setype: rpm_package_t
+    setype: public_content_t  # <--- Este contexto es aceptado por DNF y SELinux
 
 - name: Instalar repositorio oficial de MySQL 8.4 (LTS)
   dnf:
@@ -37,7 +37,7 @@
   register: module_disable
   changed_when: "'Disabling modules' in module_disable.stdout"
 
-- name: Forzar IPv4 en la configuración de DNF (para evitar cuelgues)
+- name: Forzar IPv4 en la configuración de DNF
   lineinfile:
     path: /etc/dnf/dnf.conf
     line: "ip_resolve=4"
