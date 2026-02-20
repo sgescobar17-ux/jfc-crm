@@ -13,23 +13,15 @@
   shell: |
     curl -4 -L "https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm" \
     -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-    -o /var/tmp/mysql84-community-release.rpm
+    -o /tmp/mysql84-community-release.rpm
   args:
-    creates: /var/tmp/mysql84-community-release.rpm
+    creates: /tmp/mysql84-community-release.rpm
 
-- name: Ajustar permisos y contexto de SELinux (Compatibilidad Universal)
-  file:
-    path: /var/tmp/mysql84-community-release.rpm
-    owner: root
-    group: root
-    mode: '0644'
-    setype: public_content_t  # <--- Este contexto es aceptado por DNF y SELinux
-
-- name: Instalar repositorio oficial de MySQL 8.4 (LTS)
-  dnf:
-    name: /var/tmp/mysql84-community-release.rpm
-    state: present
-    disable_gpg_check: no
+- name: Instalar repositorio MySQL usando comando RPM directo
+  shell: rpm -Uvh /tmp/mysql84-community-release.rpm
+  register: rpm_result
+  failed_when: "rpm_result.rc != 0 and 'already installed' not in rpm_result.stderr"
+  changed_when: "'installing' in rpm_result.stdout"
 
 - name: Desactivar módulos de MySQL/MariaDB predeterminados de Rocky
   shell: |
