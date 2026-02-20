@@ -31,14 +31,18 @@
     line: "ip_resolve=4"
     state: present
 
-- name: Instalar servidor MySQL (Intentando bypass final)
+- name: Instalar servidor MySQL y conectores (Bypass GPG definitivo)
   dnf:
-    name: mysql-community-server
+    name: 
+      - mysql-community-server
+      - mysql-community-client
+      - mysql-community-libs
+      - mysql-community-common
     state: present
     disable_gpg_check: yes
     update_cache: yes
 
-- name: Ensure mysql python is installed
+- name: Ensure mysql python is installed (Conector para Ansible)
   yum:
     name: python3-PyMySQL
     state: present
@@ -55,13 +59,13 @@
     insertafter: '^\[mysqld\]'
     line: "{{ item }}"
   with_items:
-    - skip-name-resolve
-    - default-time-zone='+00:00'
-    - innodb_rollback_on_timeout=1
-    - innodb_lock_wait_timeout=600
-    - max_connections=350
-    - log-bin=mysql-bin
-    - binlog-format='ROW'
+    - "skip-name-resolve"
+    - "default-time-zone='+00:00'"
+    - "innodb_rollback_on_timeout=1"
+    - "innodb_lock_wait_timeout=600"
+    - "max_connections=350"
+    - "log-bin=mysql-bin"
+    - "binlog-format='ROW'"
 
 - name: Ensure MySQL service is started and enabled
   service:
