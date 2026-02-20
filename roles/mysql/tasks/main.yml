@@ -6,11 +6,6 @@
       - gnupg2
     state: present
 
-- name: Eliminar archivo corrupto anterior
-  file:
-    path: /tmp/mysql84-community-release.rpm
-    state: absent
-
 - name: Descargar repositorio MySQL usando wget -4
   command: wget -4 https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm -O /tmp/mysql84-community-release.rpm
   args:
@@ -24,8 +19,11 @@
 - name: Instalar repositorio MySQL usando comando RPM directo
   shell: rpm -Uvh /tmp/mysql84-community-release.rpm
   register: rpm_result
-  failed_when: "rpm_result.rc != 0 and 'already installed' not in rpm_result.stderr"
-  changed_when: "'installing' in rpm_result.stdout"
+  failed_when: 
+    - rpm_result.rc != 0 
+    - "'ya está instalado' not in rpm_result.stderr"
+    - "'already installed' not in rpm_result.stderr"
+  changed_when: "'installing' in rpm_result.stdout or 'Preparando' in rpm_result.stdout"
 
 - name: Forzar IPv4 en la configuración de DNF
   lineinfile:
