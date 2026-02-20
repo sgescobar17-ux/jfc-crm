@@ -35,8 +35,8 @@
       - mysql-community-icu-data-files
     state: present
     update_cache: yes
-    disable_gpg_check: yes
-    extra_args: "--nogpgcheck"  # <--- Esto inyecta el comando exacto de la CLI
+    disable_gpg_check: no
+    
 
 - name: Ensure mysql python is installed
   yum:
