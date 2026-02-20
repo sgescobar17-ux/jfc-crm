@@ -1,34 +1,27 @@
 ---
-- name: Asegurar que GnuPG esté instalado
+- name: Asegurar que wget y GnuPG estén instalados
   yum:
-    name: gnupg2
+    name: 
+      - wget
+      - gnupg2
     state: present
 
-- name: Descargar el RPM localmente en el nodo de Ansible
-  delegate_to: localhost
-  become: no
-  run_once: yes
-  command: >
-    curl -4 -L "https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm" 
-    -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" 
-    -o /tmp/mysql84-community-release.rpm
+- name: Eliminar archivo corrupto anterior para permitir nueva descarga
+  file:
+    path: /tmp/mysql84-community-release.rpm
+    state: absent
+
+- name: Descargar repositorio MySQL usando wget -4
+  command: wget -4 https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm -O /tmp/mysql84-community-release.rpm
   args:
     creates: /tmp/mysql84-community-release.rpm
-
-- name: Copiar el RPM al servidor de base de datos
-  copy:
-    src: /tmp/mysql84-community-release.rpm
-    dest: /tmp/mysql84-community-release.rpm
-    owner: root
-    group: root
-    mode: '0644'
 
 - name: Importar llave GPG de MySQL
   rpm_key:
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
 
-- name: Instalar repositorio oficial de MySQL 8.4 usando comando RPM directo
+- name: Instalar repositorio MySQL usando comando RPM directo
   shell: rpm -Uvh /tmp/mysql84-community-release.rpm
   register: rpm_result
   failed_when: "rpm_result.rc != 0 and 'already installed' not in rpm_result.stderr"
@@ -40,7 +33,7 @@
   register: module_disable
   changed_when: "'Disabling modules' in module_disable.stdout"
 
-- name: Forzar IPv4 en la configuración de DNF
+- name: Forzar IPv4 en la configuración de DNF para el servidor
   lineinfile:
     path: /etc/dnf/dnf.conf
     line: "ip_resolve=4"
