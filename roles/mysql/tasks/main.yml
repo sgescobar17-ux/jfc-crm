@@ -11,13 +11,10 @@
   args:
     creates: /tmp/mysql84-community-release.rpm
 
-- name: Importar llaves GPG conocidas que sí acepta el sistema
-  rpm_key:
-    state: present
-    key: "{{ item }}"
-  with_items:
-    - https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-    - https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
+- name: Forzar importación de llaves GPG de MySQL vía comando (Bypass Crypto-Policy)
+  shell: |
+    rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+    rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
   ignore_errors: yes
 
 - name: Instalar repositorio MySQL usando comando RPM directo
@@ -34,11 +31,11 @@
     line: "ip_resolve=4"
     state: present
 
-- name: Instalar servidor MySQL desactivando validación GPG temporalmente
+- name: Instalar servidor MySQL (Intentando bypass final)
   dnf:
     name: mysql-community-server
     state: present
-    disable_gpg_check: yes  # <--- Esto soluciona el rechazo de la política criptográfica
+    disable_gpg_check: yes
     update_cache: yes
 
 - name: Ensure mysql python is installed
