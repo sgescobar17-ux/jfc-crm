@@ -1,4 +1,9 @@
 ---
+- name: Asegurar que GnuPG esté instalado (necesario para rpm_key)
+  yum:
+    name: gnupg2
+    state: present
+
 - name: Importar llave GPG de MySQL
   rpm_key:
     state: present
