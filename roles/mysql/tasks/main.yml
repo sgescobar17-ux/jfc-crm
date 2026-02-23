@@ -34,29 +34,39 @@
     state: started
     enabled: yes
 
-- name: Resetear y Configurar Usuarios (Fuerza Bruta)
+- name: Resetear y Configurar Usuarios (Fuerza Bruta con Bypass de Política)
   shell: |
     # 1. Intentar capturar la clave temporal
     TEMP_PW=$(grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}')
     
-    # 2. Intentar cambiar la clave usando la temporal
-    mysql --connect-expired-password -u root -p"$TEMP_PW" --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
-    # 3. Si falla, intentar usando la clave que ya debería tener Ansible
-    mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;" || \
-    # 4. Si falla, intentar sin clave (por si acaso)
-    mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
-    
-    # 5. Una vez asegurado root@localhost, crear root@%
-    mysql -u root -p"{{ mysql_root_password }}" -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
-    mysql -u root -p"{{ mysql_root_password }}" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
-    mysql -u root -p"{{ mysql_root_password }}" -e "FLUSH PRIVILEGES;"
+    # 2. Intentar reset con la temporal Y desactivar validación de password simultáneamente
+    # Usamos --connect-expired-password porque la temporal nace expirada
+    mysql --connect-expired-password -u root -p"$TEMP_PW" --execute="
+    SET GLOBAL validate_password.policy=0;
+    SET GLOBAL validate_password.length=4;
+    ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';
+    FLUSH PRIVILEGES;" || \
+    # 3. Si lo anterior falla (porque ya se cambió), intentamos entrar con la clave de Ansible
+    # para asegurar que la política esté baja y el usuario remoto exista
+    mysql -u root -p"{{ mysql_root_password }}" --execute="
+    SET GLOBAL validate_password.policy=0;
+    ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';
+    CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';
+    GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+    FLUSH PRIVILEGES;"
   no_log: true
   register: user_setup
+  failed_when: false
 
-- name: Abrir Firewall
+- name: Abrir Firewall para acceso externo
   firewalld:
     port: 3306/tcp
     permanent: yes
     state: enabled
     immediate: yes
   ignore_errors: true
+
+- name: Verificar acceso final (Opcional)
+  shell: mysql -u root -p"{{ mysql_root_password }}" -e "SELECT VERSION();"
+  no_log: true
+  changed_when: false
