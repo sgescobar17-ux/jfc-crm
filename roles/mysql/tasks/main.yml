@@ -96,6 +96,15 @@
   failed_when: false
   changed_when: reset_result.rc == 0
 
+- name: Sincronizar contraseña de root (Forzar desde el sistema)
+  shell: |
+    mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;" || \
+    mysqladmin -u root -h localhost password "{{ mysql_root_password }}" || \
+    mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
+  register: sync_pw
+  failed_when: false
+  changed_when: sync_pw.rc == 0
+
 - name: Ensure root password is set (intento inicial)
   community.mysql.mysql_user:
     # Credenciales para realizar la conexión
