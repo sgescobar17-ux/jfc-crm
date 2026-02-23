@@ -12,7 +12,7 @@
   register: install_mysql
   changed_when: "'installing' in install_mysql.stdout"
 
-- name: Configurar my.cnf para CloudStack
+- name: Configurar my.cnf para CloudStack (Desactivando validación)
   lineinfile:
     dest: /etc/my.cnf
     regexp: "^{{ item.split('=')[0] }}"
@@ -27,46 +27,39 @@
     - "log-bin=mysql-bin"
     - "binlog-format='ROW'"
     - "mysql_native_password=ON"
+    # Esto evita que MySQL cargue el plugin de validación de contraseñas
+    - "disable_password_validation=ON"
 
-- name: Iniciar MySQL
+- name: Reiniciar MySQL para aplicar cambios
   service:
     name: mysqld
-    state: started
-    enabled: yes
+    state: restarted
 
-- name: Resetear y Configurar Usuarios (Fuerza Bruta con Bypass de Política)
+- name: Resetear y Configurar Usuarios (Flujo 8.4 Correcto)
   shell: |
-    # 1. Intentar capturar la clave temporal
     TEMP_PW=$(grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}')
     
-    # 2. Intentar reset con la temporal Y desactivar validación de password simultáneamente
-    # Usamos --connect-expired-password porque la temporal nace expirada
-    mysql --connect-expired-password -u root -p"$TEMP_PW" --execute="
-    SET GLOBAL validate_password.policy=0;
-    SET GLOBAL validate_password.length=4;
+    mysql --connect-expired-password -u root -p"$TEMP_PW" <<EOF
+    -- El primer comando DEBE ser ALTER USER
     ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';
-    FLUSH PRIVILEGES;" || \
-    # 3. Si lo anterior falla (porque ya se cambió), intentamos entrar con la clave de Ansible
-    # para asegurar que la política esté baja y el usuario remoto exista
-    mysql -u root -p"{{ mysql_root_password }}" --execute="
-    SET GLOBAL validate_password.policy=0;
-    ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';
+    ALTER USER 'root'@'localhost' PASSWORD EXPIRE NEVER;
     CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';
     GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
-    FLUSH PRIVILEGES;"
+    FLUSH PRIVILEGES;
+    EOF
   no_log: true
   register: user_setup
   failed_when: false
 
-- name: Abrir Firewall para acceso externo
+- name: Verificar acceso final
+  shell: mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;"
+  register: final_check
+  changed_when: false
+
+- name: Abrir Firewall
   firewalld:
     port: 3306/tcp
     permanent: yes
     state: enabled
     immediate: yes
   ignore_errors: true
-
-- name: Verificar acceso final (Opcional)
-  shell: mysql -u root -p"{{ mysql_root_password }}" -e "SELECT VERSION();"
-  no_log: true
-  changed_when: false
