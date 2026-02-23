@@ -113,14 +113,22 @@
 # para que Ansible use obligatoriamente el archivo /root/.my.cnf
 - name: Asegurar que el usuario root tenga la password correcta
   community.mysql.mysql_user:
+    # Estos parámetros obligan a Ansible a usar la clave que tú ya probaste
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    # Esto es lo que queremos asegurar en la base de datos
     name: root
     password: "{{ mysql_root_password }}"
     host: localhost
     plugin: caching_sha2_password
     state: present
 
-- name: Ensure root has sufficient privileges (Remoto)
+- name: Asegurar privilegios remotos para CloudStack
   community.mysql.mysql_user:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
     name: root
     host: "%"
     password: "{{ mysql_root_password }}"
