@@ -30,7 +30,7 @@
     line: "ip_resolve=4"
     state: present
 
-- name: Instalar servidor MySQL y conectores (Bypass vía extra_args)
+- name: Instalar servidor MySQL y conectores
   dnf:
     name: 
       - mysql-community-server
@@ -42,19 +42,14 @@
     update_cache: yes
     disable_gpg_check: yes
 
-- name: Ensure mysql python is installed
+- name: Instalar dependencias de Python para MySQL
   yum:
     name: 
       - python3-PyMySQL
       - python3-cryptography
     state: present
 
-- name: Ensure selinux python bindings are installed
-  yum:
-    name: python3-libselinux
-    state: present
-
-- name: Ensure cloudstack specific my.cnf lines are present
+- name: Configurar parámetros específicos de CloudStack en my.cnf
   lineinfile:
     dest: /etc/my.cnf
     regexp: "^{{ item.split('=')[0] }}"
@@ -68,38 +63,32 @@
     - "max_connections=350"
     - "log-bin=mysql-bin"
     - "binlog-format='ROW'"
+    - "mysql_native_password=ON"
 
-- name: Ensure MySQL service is started and enabled
+- name: Asegurar que el servicio MySQL esté iniciado y habilitado
   service:
     name: mysqld
     state: started
     enabled: yes
 
+# --- SECCIÓN CRÍTICA DE CONTRASEÑAS ---
 
-- name: Obtener la contraseña temporal de MySQL
+- name: Obtener la contraseña temporal del log
   shell: grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}'
   register: mysql_temp_password
   changed_when: false
+  failed_when: false
 
-- name: Crear archivo de credenciales temporal con clave de sistema
-  copy:
-    dest: /root/.my.cnf
-    content: |
-      [client]
-      user=root
-      password="{{ mysql_temp_password.stdout }}"
-      socket=/var/lib/mysql/mysql.sock
-    mode: '0600'
-  when: mysql_temp_password.stdout != ""
-
-- name: Cambiar contraseña temporal por la definitiva (8.4 compatible)
+- name: Cambiar contraseña temporal por la definitiva de Ansible
   shell: |
-    mysql --connect-expired-password -u root -p"{{ mysql_temp_password.stdout }}" --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
+    mysql --connect-expired-password -u root -p"{{ mysql_temp_password.stdout }}" --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" && \
+    mysql -u root -p"{{ mysql_root_password }}" -e "FLUSH PRIVILEGES;"
   register: change_pw
   failed_when: false
   when: mysql_temp_password.stdout != ""
+  no_log: true
 
-- name: Actualizar .my.cnf con la clave NUEVA de Ansible
+- name: Crear archivo .my.cnf para permitir acceso root sin password en el shell
   copy:
     dest: /root/.my.cnf
     content: |
@@ -109,29 +98,18 @@
       socket=/var/lib/mysql/mysql.sock
     mode: '0600'
 
-# NOTA: En las siguientes tareas ELIMINAMOS los parámetros de login 
-# para que Ansible use obligatoriamente el archivo /root/.my.cnf
-- name: Asegurar que el usuario root tenga la password correcta
-  community.mysql.mysql_user:
-    # Estos parámetros obligan a Ansible a usar la clave que tú ya probaste
-    login_user: root
-    login_password: "{{ mysql_root_password }}"
-    login_unix_socket: /var/lib/mysql/mysql.sock
-    # Esto es lo que queremos asegurar en la base de datos
-    name: root
-    password: "{{ mysql_root_password }}"
-    host: localhost
-    plugin: caching_sha2_password
-    state: present
+- name: Configurar privilegios remotos para CloudStack (root@%)
+  shell: |
+    mysql -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
+    mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+    mysql -e "FLUSH PRIVILEGES;"
+  register: remote_privs
+  changed_when: remote_privs.rc == 0
 
-- name: Asegurar privilegios remotos para CloudStack
-  community.mysql.mysql_user:
-    login_user: root
-    login_password: "{{ mysql_root_password }}"
-    login_unix_socket: /var/lib/mysql/mysql.sock
-    name: root
-    host: "%"
-    password: "{{ mysql_root_password }}"
-    priv: "*.*:ALL,GRANT"
-    plugin: caching_sha2_password
-    state: present
+- name: Abrir puerto 3306 en Firewalld
+  firewalld:
+    port: 3306/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+  ignore_errors: true
