@@ -83,8 +83,10 @@
     line: "mysql_native_password=ON"
   notify: Restart MySQL
 
-- name: Forzar el reinicio de MySQL ahora mismo
-  meta: flush_handlers
+- name: Reiniciar MySQL incondicionalmente para cargar plugin
+  service:
+    name: mysqld
+    state: restarted
 
 - name: Ensure root password is set (intento inicial)
   community.mysql.mysql_user:
