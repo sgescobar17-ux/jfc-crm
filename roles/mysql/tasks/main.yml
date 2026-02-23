@@ -112,8 +112,3 @@
     priv: "*.*:ALL,GRANT"
     state: present
     plugin: caching_sha2_password
-
-
-  handlers:
-  - name: Incluir manejadores externos
-    include_tasks: handlers/main.yml
