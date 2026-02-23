@@ -94,12 +94,12 @@
 
 - name: Cambiar contraseña temporal por la definitiva (8.4 compatible)
   shell: |
-    mysql --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
+    mysql --connect-expired-password -u root -p"{{ mysql_temp_password.stdout }}" --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
   register: change_pw
   failed_when: false
   when: mysql_temp_password.stdout != ""
 
-- name: Actualizar .my.cnf con la clave nueva de Ansible
+- name: Actualizar .my.cnf con la clave NUEVA de Ansible
   copy:
     dest: /root/.my.cnf
     content: |
@@ -109,23 +109,21 @@
       socket=/var/lib/mysql/mysql.sock
     mode: '0600'
 
-- name: Ensure root password is set (intento inicial)
+# NOTA: En las siguientes tareas ELIMINAMOS los parámetros de login 
+# para que Ansible use obligatoriamente el archivo /root/.my.cnf
+- name: Asegurar que el usuario root tenga la password correcta
   community.mysql.mysql_user:
-    user: root
+    name: root
     password: "{{ mysql_root_password }}"
     host: localhost
-    login_unix_socket: /var/lib/mysql/mysql.sock
-    check_implicit_admin: yes
-    state: present
     plugin: caching_sha2_password
-  ignore_errors: true
+    state: present
 
-- name: Ensure root has sufficient privileges
+- name: Ensure root has sufficient privileges (Remoto)
   community.mysql.mysql_user:
-    login_unix_socket: /var/lib/mysql/mysql.sock
-    user: root
+    name: root
     host: "%"
     password: "{{ mysql_root_password }}"
     priv: "*.*:ALL,GRANT"
-    state: present
     plugin: caching_sha2_password
+    state: present
