@@ -88,23 +88,28 @@
     name: mysqld
     state: restarted
 
-- name: Resetear y Sincronizar contraseña de root (Solución definitiva 1820/1045)
+- name: Crear archivo de credenciales temporal para root
+  copy:
+    dest: /root/.my.cnf
+    content: |
+      [client]
+      user=root
+      password="{{ mysql_root_password }}"
+      [mysql]
+      user=root
+      password="{{ mysql_root_password }}"
+    mode: '0600'
+
+- name: Forzar actualización de password (por si el archivo .my.cnf aún no coincide)
   shell: |
-    # Intenta resetear asumiendo que está expirada o es la temporal
-    mysql -u root -p"{{ mysql_root_password }}" --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
-    # Si falla, intenta sin contraseña (instalación limpia)
-    mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
-    # Si ya está bien, solo confirma la conexión
+    mysql --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
     mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;"
-  register: root_sync
+  register: force_reset
   failed_when: false
-  changed_when: root_sync.rc == 0
 
 - name: Ensure root password is set (intento inicial)
   community.mysql.mysql_user:
-    login_user: root
-    login_password: "{{ mysql_root_password }}"
-    login_unix_socket: /var/lib/mysql/mysql.sock
+    # Quitamos login_user/password porque ahora leerá /root/.my.cnf automáticamente
     user: root
     password: "{{ mysql_root_password }}"
     host: localhost
@@ -115,13 +120,14 @@
 
 - name: Ensure root has sufficient privileges
   community.mysql.mysql_user:
-    login_user: root
-    login_password: "{{ mysql_root_password }}"
-    # CAMBIO CLAVE: Usamos socket en lugar de login_host 127.0.0.1 para evitar el error 1045
-    login_unix_socket: /var/lib/mysql/mysql.sock
     user: root
     host: "%"
     password: "{{ mysql_root_password }}"
     priv: "*.*:ALL,GRANT"
     state: present
     plugin: caching_sha2_password
+
+- name: Eliminar archivo de credenciales temporal
+  file:
+    path: /root/.my.cnf
+    state: absent
