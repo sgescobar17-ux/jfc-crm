@@ -79,21 +79,24 @@
   community.mysql.mysql_user:
     user: root
     password: "{{ mysql_root_password }}"
-    host: localhost
+    host: "%"
     login_unix_socket: /var/lib/mysql/mysql.sock
     check_implicit_admin: yes
     state: present
-    plugin: caching_sha2_password  # <--- Agrega esto
+    # Forzamos el plugin moderno de MySQL 8.4
+    plugin: caching_sha2_password
   ignore_errors: true
 
 - name: Ensure root has sufficient privileges
   community.mysql.mysql_user:
+    # Estas son las credenciales para ENTRAR a MySQL
     login_user: root
     login_password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    # Estos son los datos del usuario que queremos CONFIGURAR
     user: root
     host: "%"
     password: "{{ mysql_root_password }}"
     priv: "*.*:ALL,GRANT"
     state: present
-    login_host: 127.0.0.1
-    plugin: caching_sha2_password  # <--- Agrega esto
+    plugin: caching_sha2_password
