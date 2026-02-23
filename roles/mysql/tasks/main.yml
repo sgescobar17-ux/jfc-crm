@@ -75,6 +75,15 @@
     state: started
     enabled: yes
 
+
+- name: Habilitar mysql_native_password en el servidor (Necesario para compatibilidad Ansible en 8.4)
+  lineinfile:
+    path: /etc/my.cnf
+    insertafter: '^\[mysqld\]'
+    line: "mysql_native_password=ON"
+  notify: Restart MySQL
+
+
 - name: Ensure root password is set (intento inicial)
   community.mysql.mysql_user:
     # Credenciales para realizar la conexión
@@ -103,3 +112,8 @@
     priv: "*.*:ALL,GRANT"
     state: present
     plugin: caching_sha2_password
+
+
+  handlers:
+  - name: Incluir manejadores externos
+    include_tasks: handlers/main.yml
