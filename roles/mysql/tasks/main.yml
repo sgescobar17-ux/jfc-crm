@@ -76,27 +76,34 @@
     enabled: yes
 
 
-- name: Habilitar mysql_native_password en el servidor (Necesario para compatibilidad Ansible en 8.4)
-  lineinfile:
-    path: /etc/my.cnf
-    insertafter: '^\[mysqld\]'
-    line: "mysql_native_password=ON"
-  notify: Restart MySQL
+- name: Obtener la contraseña temporal de MySQL
+  shell: grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}'
+  register: mysql_temp_password
+  changed_when: false
 
-- name: Reiniciar MySQL incondicionalmente para cargar plugin
-  service:
-    name: mysqld
-    state: restarted
-
-- name: Crear archivo de credenciales para root (Forzando Socket)
+- name: Crear archivo de credenciales temporal con clave de sistema
   copy:
     dest: /root/.my.cnf
     content: |
       [client]
       user=root
-      password="{{ mysql_root_password }}"
+      password="{{ mysql_temp_password.stdout }}"
       socket=/var/lib/mysql/mysql.sock
-      [mysql]
+    mode: '0600'
+  when: mysql_temp_password.stdout != ""
+
+- name: Cambiar contraseña temporal por la definitiva (8.4 compatible)
+  shell: |
+    mysql --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
+  register: change_pw
+  failed_when: false
+  when: mysql_temp_password.stdout != ""
+
+- name: Actualizar .my.cnf con la clave nueva de Ansible
+  copy:
+    dest: /root/.my.cnf
+    content: |
+      [client]
       user=root
       password="{{ mysql_root_password }}"
       socket=/var/lib/mysql/mysql.sock
