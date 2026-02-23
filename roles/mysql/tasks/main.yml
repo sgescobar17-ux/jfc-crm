@@ -12,35 +12,39 @@
   register: install_mysql
   changed_when: "'installing' in install_mysql.stdout"
 
-- name: Configurar my.cnf para CloudStack (Desactivando validación)
-  lineinfile:
+- name: Crear archivo my.cnf limpio para CloudStack
+  copy:
     dest: /etc/my.cnf
-    regexp: "^{{ item.split('=')[0] }}"
-    insertafter: '^\[mysqld\]'
-    line: "{{ item }}"
-  with_items:
-    - "skip-name-resolve"
-    - "default-time-zone='+00:00'"
-    - "innodb_rollback_on_timeout=1"
-    - "innodb_lock_wait_timeout=600"
-    - "max_connections=350"
-    - "log-bin=mysql-bin"
-    - "binlog-format='ROW'"
-    - "mysql_native_password=ON"
-    # Esto evita que MySQL cargue el plugin de validación de contraseñas
-    - "disable_password_validation=ON"
+    content: |
+      [mysqld]
+      datadir=/var/lib/mysql
+      socket=/var/lib/mysql/mysql.sock
+      log-error=/var/log/mysqld.log
+      pid-file=/run/mysqld/mysqld.pid
 
-- name: Reiniciar MySQL para aplicar cambios
+      # Configuraciones CloudStack
+      skip-name-resolve
+      default-time-zone='+00:00'
+      innodb_rollback_on_timeout=1
+      innodb_lock_wait_timeout=600
+      max_connections=350
+      log-bin=mysql-bin
+      binlog-format=ROW
+      mysql_native_password=ON
+
+- name: Iniciar MySQL
   service:
     name: mysqld
-    state: restarted
+    state: started
+    enabled: yes
 
 - name: Resetear y Configurar Usuarios (Flujo 8.4 Correcto)
   shell: |
+    # 1. Obtener la clave temporal
     TEMP_PW=$(grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}')
     
+    # 2. Resetear usando el bloque heredoc
     mysql --connect-expired-password -u root -p"$TEMP_PW" <<EOF
-    -- El primer comando DEBE ser ALTER USER
     ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';
     ALTER USER 'root'@'localhost' PASSWORD EXPIRE NEVER;
     CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';
@@ -51,11 +55,6 @@
   register: user_setup
   failed_when: false
 
-- name: Verificar acceso final
-  shell: mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;"
-  register: final_check
-  changed_when: false
-
 - name: Abrir Firewall
   firewalld:
     port: 3306/tcp
@@ -63,3 +62,8 @@
     state: enabled
     immediate: yes
   ignore_errors: true
+
+- name: Verificar acceso final
+  shell: mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;"
+  register: final_check
+  changed_when: false
