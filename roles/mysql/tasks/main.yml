@@ -1,46 +1,18 @@
 ---
-- name: Asegurar que wget y GnuPG estén instalados
+- name: Asegurar dependencias de sistema
   yum:
-    name: 
-      - wget
-      - gnupg2
+    name: [wget, gnupg2, python3-PyMySQL, python3-cryptography]
     state: present
 
-- name: Descargar repositorio MySQL usando wget -4
-  command: wget -4 https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm -O /tmp/mysql84-community-release.rpm
-  args:
-    creates: /tmp/mysql84-community-release.rpm
+- name: Instalar Repositorio y Servidor MySQL 8.4
+  shell: |
+    wget -4 -nc https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm -O /tmp/mysql84.rpm
+    rpm -Uvh /tmp/mysql84.rpm || true
+    dnf install -y mysql-community-server
+  register: install_mysql
+  changed_when: "'installing' in install_mysql.stdout"
 
-- name: Instalar repositorio MySQL usando comando RPM directo
-  shell: rpm -Uvh /tmp/mysql84-community-release.rpm
-  register: rpm_result
-  failed_when: 
-    - rpm_result.rc != 0 
-    - "'ya está instalado' not in rpm_result.stderr"
-  changed_when: "'installing' in rpm_result.stdout or 'Preparando' in rpm_result.stdout"
-
-- name: Importar llave GPG oficial de MySQL
-  rpm_key:
-    state: present
-    key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2025
-
-- name: Forzar IPv4 en la configuración de DNF
-  lineinfile:
-    path: /etc/dnf/dnf.conf
-    line: "ip_resolve=4"
-    state: present
-
-- name: Instalar servidor MySQL y conectores
-  dnf:
-    name: 
-      - mysql-community-server
-      - mysql-community-client
-      - mysql-community-libs
-    state: present
-    update_cache: yes
-    disable_gpg_check: yes
-
-- name: Configurar parámetros CloudStack y compatibilidad 8.4
+- name: Configurar my.cnf para CloudStack
   lineinfile:
     dest: /etc/my.cnf
     regexp: "^{{ item.split('=')[0] }}"
@@ -56,40 +28,32 @@
     - "binlog-format='ROW'"
     - "mysql_native_password=ON"
 
-- name: Asegurar que el servicio MySQL esté iniciado
+- name: Iniciar MySQL
   service:
     name: mysqld
     state: started
     enabled: yes
 
-# --- LÓGICA DE CONTRASEÑA SIN ARCHIVOS AUXILIARES ---
-
-- name: Capturar la contraseña temporal de los logs
-  shell: grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}'
-  register: mysql_temp_password
-  changed_when: false
-  failed_when: false
-
-- name: Cambiar contraseña temporal por la definitiva de Ansible
+- name: Resetear y Configurar Usuarios (Fuerza Bruta)
   shell: |
-    mysql --connect-expired-password -u root -p"{{ mysql_temp_password.stdout }}" --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
-  register: change_pw
-  # Si falla es porque la clave ya se cambió en una ejecución previa
-  failed_when: false
-  no_log: true 
-  when: mysql_temp_password.stdout != ""
-
-- name: Configurar privilegios remotos para CloudStack (root@%)
-  shell: |
+    # 1. Intentar capturar la clave temporal
+    TEMP_PW=$(grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}')
+    
+    # 2. Intentar cambiar la clave usando la temporal
+    mysql --connect-expired-password -u root -p"$TEMP_PW" --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
+    # 3. Si falla, intentar usando la clave que ya debería tener Ansible
+    mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;" || \
+    # 4. Si falla, intentar sin clave (por si acaso)
+    mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
+    
+    # 5. Una vez asegurado root@localhost, crear root@%
     mysql -u root -p"{{ mysql_root_password }}" -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
     mysql -u root -p"{{ mysql_root_password }}" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
     mysql -u root -p"{{ mysql_root_password }}" -e "FLUSH PRIVILEGES;"
-  register: remote_privs
-  changed_when: remote_privs.rc == 0
-  # Usamos el password definitivo que acabamos de setear
   no_log: true
+  register: user_setup
 
-- name: Abrir puerto 3306 en el firewall
+- name: Abrir Firewall
   firewalld:
     port: 3306/tcp
     permanent: yes
