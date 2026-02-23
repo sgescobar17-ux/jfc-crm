@@ -88,31 +88,33 @@
     name: mysqld
     state: restarted
 
-- name: Crear archivo de credenciales temporal para root
+- name: Crear archivo de credenciales para root (Forzando Socket)
   copy:
     dest: /root/.my.cnf
     content: |
       [client]
       user=root
       password="{{ mysql_root_password }}"
+      socket=/var/lib/mysql/mysql.sock
       [mysql]
       user=root
       password="{{ mysql_root_password }}"
+      socket=/var/lib/mysql/mysql.sock
     mode: '0600'
 
-- name: Forzar actualización de password (por si el archivo .my.cnf aún no coincide)
+- name: Resetear password y asegurar plugin (Vía Socket Directo)
   shell: |
-    mysql --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
-    mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;"
-  register: force_reset
+    mysql --protocol=socket -u root -p"{{ mysql_root_password }}" --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
+    mysql --protocol=socket -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
+  register: socket_reset
   failed_when: false
 
 - name: Ensure root password is set (intento inicial)
   community.mysql.mysql_user:
-    # Quitamos login_user/password porque ahora leerá /root/.my.cnf automáticamente
     user: root
     password: "{{ mysql_root_password }}"
     host: localhost
+    login_unix_socket: /var/lib/mysql/mysql.sock
     check_implicit_admin: yes
     state: present
     plugin: caching_sha2_password
@@ -120,14 +122,10 @@
 
 - name: Ensure root has sufficient privileges
   community.mysql.mysql_user:
+    login_unix_socket: /var/lib/mysql/mysql.sock
     user: root
     host: "%"
     password: "{{ mysql_root_password }}"
     priv: "*.*:ALL,GRANT"
     state: present
     plugin: caching_sha2_password
-
-- name: Eliminar archivo de credenciales temporal
-  file:
-    path: /root/.my.cnf
-    state: absent
