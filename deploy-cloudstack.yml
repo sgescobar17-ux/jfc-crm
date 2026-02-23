@@ -11,8 +11,8 @@
   become: yes
 
   vars:
-    mysql_root_password: "VEw;6(eeh7L6"
-    mysql_cloud_password: "Cl0ud5tack"
+    mysql_root_password: "CloudStack2024!"
+    mysql_cloud_password: "CloudStack2024!"
 
   roles:
     - mysql
@@ -22,8 +22,8 @@
   become: yes
 
   vars:
-    mysql_root_password: "VEw;6(eeh7L6"
-    mysql_cloud_password: "Cl0ud5tack"
+    mysql_root_password: "CloudStack2024!"
+    mysql_cloud_password: "CloudStack2024!"
     mysql_server_ip: "{{ hostvars[groups['acs_db'][0]].ansible_host | default(groups['acs_db'][0]) }}"
     tmp_nfs_path: /cloudstack_nfs
     sec_nfs_ip: 192.168.80.48
