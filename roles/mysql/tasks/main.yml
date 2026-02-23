@@ -35,7 +35,7 @@
       - mysql-community-icu-data-files
     state: present
     update_cache: yes
-    disable_gpg_check: no
+    disable_gpg_check: yes
     
 
 - name: Ensure mysql python is installed
