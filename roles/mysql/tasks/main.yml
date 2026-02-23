@@ -1,98 +1,94 @@
 ---
-- name: Configuración Completa de MySQL 8.4 para CloudStack
-  hosts: all
-  become: yes
-  vars:
-    mysql_root_password: "TuPasswordSeguro" # Define esto en tus variables o vault
+- name: Asegurar que wget y GnuPG estén instalados
+  yum:
+    name: 
+      - wget
+      - gnupg2
+    state: present
 
-  tasks:
-    - name: Asegurar que wget y GnuPG estén instalados
-      yum:
-        name: 
-          - wget
-          - gnupg2
-        state: present
+- name: Descargar repositorio MySQL usando wget -4
+  command: wget -4 https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm -O /tmp/mysql84-community-release.rpm
+  args:
+    creates: /tmp/mysql84-community-release.rpm
 
-    - name: Descargar repositorio MySQL usando wget -4
-      command: wget -4 https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm -O /tmp/mysql84-community-release.rpm
-      args:
-        creates: /tmp/mysql84-community-release.rpm
+- name: Instalar repositorio MySQL usando comando RPM directo
+  shell: rpm -Uvh /tmp/mysql84-community-release.rpm
+  register: rpm_result
+  failed_when: 
+    - rpm_result.rc != 0 
+    - "'ya está instalado' not in rpm_result.stderr"
+  changed_when: "'installing' in rpm_result.stdout or 'Preparando' in rpm_result.stdout"
 
-    - name: Instalar repositorio MySQL desde el archivo local
-      dnf:
-        name: /tmp/mysql84-community-release.rpm
-        state: present
-        disable_gpg_check: yes
+- name: Importar llave GPG oficial de MySQL (Corrección para EL9)
+  rpm_key:
+    state: present
+    key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
 
-    - name: Importar llave GPG oficial de MySQL (Corrige error NOTTRUSTED)
-      rpm_key:
-        state: present
-        key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
+- name: Forzar IPv4 en la configuración de DNF
+  lineinfile:
+    path: /etc/dnf/dnf.conf
+    line: "ip_resolve=4"
+    state: present
 
-    - name: Forzar IPv4 en la configuración de DNF
-      lineinfile:
-        path: /etc/dnf/dnf.conf
-        line: "ip_resolve=4"
-        state: present
+- name: Instalar servidor MySQL y conectores (Bypass vía extra_args)
+  dnf:
+    name: 
+      - mysql-community-server
+      - mysql-community-client
+      - mysql-community-libs
+      - mysql-community-common
+      - mysql-community-icu-data-files
+    state: present
+    update_cache: yes
+    disable_gpg_check: yes
 
-    - name: Instalar servidor MySQL y conectores
-      dnf:
-        name: 
-          - mysql-community-server
-          - mysql-community-client
-          - mysql-community-libs
-          - mysql-community-common
-          - mysql-community-icu-data-files
-        state: present
-        update_cache: yes
+- name: Ensure mysql python is installed
+  yum:
+    name: python3-PyMySQL
+    state: present
 
-    - name: Ensure mysql python is installed (necesario para módulos de ansible)
-      yum:
-        name: python3-PyMySQL
-        state: present
+- name: Ensure selinux python bindings are installed
+  yum:
+    name: python3-libselinux
+    state: present
 
-    - name: Ensure selinux python bindings are installed
-      yum:
-        name: python3-libselinux
-        state: present
+- name: Ensure cloudstack specific my.cnf lines are present
+  lineinfile:
+    dest: /etc/my.cnf
+    regexp: "^{{ item.split('=')[0] }}"
+    insertafter: '^\[mysqld\]'
+    line: "{{ item }}"
+  with_items:
+    - "skip-name-resolve"
+    - "default-time-zone='+00:00'"
+    - "innodb_rollback_on_timeout=1"
+    - "innodb_lock_wait_timeout=600"
+    - "max_connections=350"
+    - "log-bin=mysql-bin"
+    - "binlog-format='ROW'"
 
-    - name: Ensure cloudstack specific my.cnf lines are present
-      lineinfile:
-        dest: /etc/my.cnf
-        regexp: "^{{ item.split('=')[0] }}"
-        insertafter: '^\[mysqld\]'
-        line: "{{ item }}"
-      with_items:
-        - "skip-name-resolve"
-        - "default-time-zone='+00:00'"
-        - "innodb_rollback_on_timeout=1"
-        - "innodb_lock_wait_timeout=600"
-        - "max_connections=350"
-        - "log-bin=mysql-bin"
-        - "binlog-format='ROW'"
+- name: Ensure MySQL service is started and enabled
+  service:
+    name: mysqld
+    state: started
+    enabled: yes
 
-    - name: Ensure MySQL service is started and enabled
-      service:
-        name: mysqld
-        state: started
-        enabled: yes
+- name: Ensure root password is set (intento inicial)
+  community.mysql.mysql_user:
+    user: root
+    password: "{{ mysql_root_password }}"
+    host: localhost
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    check_implicit_admin: yes
+    state: present
+  ignore_errors: true
 
-    - name: Ensure root password is set (intento inicial vía socket)
-      community.mysql.mysql_user:
-        user: root
-        password: "{{ mysql_root_password }}"
-        host: localhost
-        login_unix_socket: /var/lib/mysql/mysql.sock
-        check_implicit_admin: yes
-        state: present
-      ignore_errors: true
-
-    - name: Ensure root has sufficient privileges (acceso remoto para CloudStack)
-      community.mysql.mysql_user:
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
-        user: root
-        host: "%"
-        password: "{{ mysql_root_password }}"
-        priv: "*.*:ALL,GRANT"
-        state: present
+- name: Ensure root has sufficient privileges
+  community.mysql.mysql_user:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    user: root
+    host: "%"
+    password: "{{ mysql_root_password }}"
+    priv: "*.*:ALL,GRANT"
+    state: present
