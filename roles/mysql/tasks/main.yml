@@ -44,7 +44,9 @@
 
 - name: Ensure mysql python is installed
   yum:
-    name: python3-PyMySQL
+    name: 
+      - python3-PyMySQL
+      - python3-cryptography
     state: present
 
 - name: Ensure selinux python bindings are installed
