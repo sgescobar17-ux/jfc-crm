@@ -19,7 +19,7 @@
     - "'ya está instalado' not in rpm_result.stderr"
   changed_when: "'installing' in rpm_result.stdout or 'Preparando' in rpm_result.stdout"
 
-- name: Importar llave GPG oficial de MySQL (Corrección para EL9)
+- name: Importar llave GPG oficial de MySQL
   rpm_key:
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2025
@@ -36,20 +36,11 @@
       - mysql-community-server
       - mysql-community-client
       - mysql-community-libs
-      - mysql-community-common
-      - mysql-community-icu-data-files
     state: present
     update_cache: yes
     disable_gpg_check: yes
 
-- name: Instalar dependencias de Python para MySQL
-  yum:
-    name: 
-      - python3-PyMySQL
-      - python3-cryptography
-    state: present
-
-- name: Configurar parámetros específicos de CloudStack en my.cnf
+- name: Configurar parámetros CloudStack y compatibilidad 8.4
   lineinfile:
     dest: /etc/my.cnf
     regexp: "^{{ item.split('=')[0] }}"
@@ -65,15 +56,15 @@
     - "binlog-format='ROW'"
     - "mysql_native_password=ON"
 
-- name: Asegurar que el servicio MySQL esté iniciado y habilitado
+- name: Asegurar que el servicio MySQL esté iniciado
   service:
     name: mysqld
     state: started
     enabled: yes
 
-# --- SECCIÓN CRÍTICA DE CONTRASEÑAS ---
+# --- LÓGICA DE CONTRASEÑA SIN ARCHIVOS AUXILIARES ---
 
-- name: Obtener la contraseña temporal del log
+- name: Capturar la contraseña temporal de los logs
   shell: grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}'
   register: mysql_temp_password
   changed_when: false
@@ -81,32 +72,24 @@
 
 - name: Cambiar contraseña temporal por la definitiva de Ansible
   shell: |
-    mysql --connect-expired-password -u root -p"{{ mysql_temp_password.stdout }}" --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" && \
-    mysql -u root -p"{{ mysql_root_password }}" -e "FLUSH PRIVILEGES;"
+    mysql --connect-expired-password -u root -p"{{ mysql_temp_password.stdout }}" --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
   register: change_pw
+  # Si falla es porque la clave ya se cambió en una ejecución previa
   failed_when: false
+  no_log: true 
   when: mysql_temp_password.stdout != ""
-  no_log: true
-
-- name: Crear archivo .my.cnf para permitir acceso root sin password en el shell
-  copy:
-    dest: /root/.my.cnf
-    content: |
-      [client]
-      user=root
-      password="{{ mysql_root_password }}"
-      socket=/var/lib/mysql/mysql.sock
-    mode: '0600'
 
 - name: Configurar privilegios remotos para CloudStack (root@%)
   shell: |
-    mysql -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
-    mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
-    mysql -e "FLUSH PRIVILEGES;"
+    mysql -u root -p"{{ mysql_root_password }}" -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
+    mysql -u root -p"{{ mysql_root_password }}" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+    mysql -u root -p"{{ mysql_root_password }}" -e "FLUSH PRIVILEGES;"
   register: remote_privs
   changed_when: remote_privs.rc == 0
+  # Usamos el password definitivo que acabamos de setear
+  no_log: true
 
-- name: Abrir puerto 3306 en Firewalld
+- name: Abrir puerto 3306 en el firewall
   firewalld:
     port: 3306/tcp
     permanent: yes
