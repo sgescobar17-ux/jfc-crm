@@ -81,6 +81,8 @@
     login_unix_socket: /var/lib/mysql/mysql.sock
     check_implicit_admin: yes
     state: present
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
   ignore_errors: true
 
 - name: Ensure root has sufficient privileges
@@ -92,3 +94,4 @@
     password: "{{ mysql_root_password }}"
     priv: "*.*:ALL,GRANT"
     state: present
+    login_host: 127.0.0.1
