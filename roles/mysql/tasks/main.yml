@@ -88,30 +88,23 @@
     name: mysqld
     state: restarted
 
-- name: Forzar el reset de la password de root (Elimina el error 1820)
+- name: Resetear y Sincronizar contraseña de root (Solución definitiva 1820/1045)
   shell: |
-    mysql -u root -p"{{ mysql_root_password }}" --connect-expired-password -e \
-    "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
-  register: reset_result
+    # Intenta resetear asumiendo que está expirada o es la temporal
+    mysql -u root -p"{{ mysql_root_password }}" --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
+    # Si falla, intenta sin contraseña (instalación limpia)
+    mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
+    # Si ya está bien, solo confirma la conexión
+    mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;"
+  register: root_sync
   failed_when: false
-  changed_when: reset_result.rc == 0
-
-- name: Sincronizar contraseña de root (Forzar desde el sistema)
-  shell: |
-    mysql -u root -p"{{ mysql_root_password }}" -e "SELECT 1;" || \
-    mysqladmin -u root -h localhost password "{{ mysql_root_password }}" || \
-    mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
-  register: sync_pw
-  failed_when: false
-  changed_when: sync_pw.rc == 0
+  changed_when: root_sync.rc == 0
 
 - name: Ensure root password is set (intento inicial)
   community.mysql.mysql_user:
-    # Credenciales para realizar la conexión
     login_user: root
     login_password: "{{ mysql_root_password }}"
     login_unix_socket: /var/lib/mysql/mysql.sock
-    # Configuración del usuario
     user: root
     password: "{{ mysql_root_password }}"
     host: localhost
@@ -122,11 +115,10 @@
 
 - name: Ensure root has sufficient privileges
   community.mysql.mysql_user:
-    # Credenciales para realizar la conexión
     login_user: root
     login_password: "{{ mysql_root_password }}"
-    login_host: 127.0.0.1
-    # Configuración del usuario remoto
+    # CAMBIO CLAVE: Usamos socket en lugar de login_host 127.0.0.1 para evitar el error 1045
+    login_unix_socket: /var/lib/mysql/mysql.sock
     user: root
     host: "%"
     password: "{{ mysql_root_password }}"
