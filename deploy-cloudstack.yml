@@ -11,7 +11,7 @@
   become: yes
 
   vars:
-    mysql_root_password: "Cl0ud5tack"
+    mysql_root_password: "VEw;6(eeh7L6"
     mysql_cloud_password: "Cl0ud5tack"
 
   roles:
@@ -22,7 +22,7 @@
   become: yes
 
   vars:
-    mysql_root_password: "Cl0ud5tack"
+    mysql_root_password: "VEw;6(eeh7L6"
     mysql_cloud_password: "Cl0ud5tack"
     mysql_server_ip: "{{ hostvars[groups['acs_db'][0]].ansible_host | default(groups['acs_db'][0]) }}"
     tmp_nfs_path: /cloudstack_nfs
