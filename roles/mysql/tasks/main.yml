@@ -102,13 +102,6 @@
       socket=/var/lib/mysql/mysql.sock
     mode: '0600'
 
-- name: Resetear password y asegurar plugin (Vía Socket Directo)
-  shell: |
-    mysql --protocol=socket -u root -p"{{ mysql_root_password }}" --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';" || \
-    mysql --protocol=socket -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY '{{ mysql_root_password }}';"
-  register: socket_reset
-  failed_when: false
-
 - name: Ensure root password is set (intento inicial)
   community.mysql.mysql_user:
     user: root
